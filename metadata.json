@@ -1,0 +1,5 @@
+{
+  "name": "Image2TeX",
+  "description": "An application that can receive an image pasted from the clipboard, then automatically convert the text or mathematical formulas in the image into accurate LaTeX code using the Gemini API.",
+  "requestFramePermissions": []
+}
