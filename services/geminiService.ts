@@ -1,15 +1,18 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
-export async function convertImagesToLatex(images: Array<{base64: string, mimeType: string}>, includeSolution: boolean): Promise<string> {
+export async function convertImagesToLatex(
+    images: Array<{base64: string, mimeType: string}>, 
+    includeSolution: boolean,
+    customApiKey?: string
+): Promise<string> {
   try {
+    const activeApiKey = customApiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!activeApiKey) {
+      throw new Error("Vui lòng cung cấp Gemini API Key trong phần Cài đặt (biểu tượng bánh răng).");
+    }
+    
+    const ai = new GoogleGenAI({ apiKey: activeApiKey });
+
     const solutionInstructionMCQ = includeSolution
       ? `\\loigiai{Nội dung đáp án}
 \\end{ex}

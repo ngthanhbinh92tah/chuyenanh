@@ -17,6 +17,8 @@ const App: React.FC = () => {
   const [autoConvert, setAutoConvert] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('gemini_api_key') || '');
+  const [showSettings, setShowSettings] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,7 +36,7 @@ const App: React.FC = () => {
         }
         return { base64: base64Data, mimeType: img.mime };
       });
-      const result = await convertImagesToLatex(base64Images, includeSolution);
+      const result = await convertImagesToLatex(base64Images, includeSolution, apiKey);
       setLatexCode(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -186,15 +188,52 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col items-center p-4 sm:p-6 md:p-8">
-      <header className="text-center mb-8">
+      <header className="text-center mb-8 relative w-full max-w-6xl">
         <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300">
           Image2TeX
         </h1>
         <p className="text-slate-400 mt-2 text-lg">
           Paste or select images with math and convert them to LaTeX instantly.
         </p>
+        <button 
+          onClick={() => setShowSettings(!showSettings)} 
+          className="absolute top-0 right-0 sm:right-4 p-2 text-slate-400 hover:text-sky-400 transition-colors"
+          title="Settings"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
       </header>
       
+      {showSettings && (
+        <div className="w-full max-w-6xl mb-6 p-4 bg-slate-800 rounded-lg border border-slate-700 flex flex-col gap-3">
+          <label className="text-sm font-semibold text-slate-300">Gemini API Key</label>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+              }}
+              placeholder="Nhập API key của bạn..."
+              className="flex-grow p-2 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:outline-none focus:border-sky-500"
+            />
+            <button
+              onClick={() => {
+                localStorage.setItem('gemini_api_key', apiKey);
+                setShowSettings(false);
+              }}
+              className="bg-sky-600 hover:bg-sky-500 text-white font-medium py-2 px-4 rounded transition-colors"
+            >
+              Lưu Key
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">Key được lưu trữ an toàn trong trình duyệt (localStorage). Để trống nếu hệ thống đã cấu hình sẵn key.</p>
+        </div>
+      )}
+
       <main className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Column: Image Input */}
         <div className="flex flex-col gap-4">
