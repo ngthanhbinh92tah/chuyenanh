@@ -1,111 +1,40 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+// services/geminiService.ts
+// File này chạy TRONG TRÌNH DUYỆT — vì vậy tuyệt đối không import "@google/genai"
+// hay đọc API key ở đây nữa. Toàn bộ việc đó đã chuyển sang api/convert.ts (server).
 
 export async function convertImagesToLatex(
-    images: Array<{base64: string, mimeType: string}>, 
-    includeSolution: boolean,
-    customApiKey?: string
+  images: Array<{ base64: string; mimeType: string }>,
+  includeSolution: boolean
 ): Promise<string> {
   try {
-    const activeApiKey = customApiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
-    if (!activeApiKey) {
-      throw new Error("Vui lòng cung cấp Gemini API Key trong phần Cài đặt (biểu tượng bánh răng).");
-    }
-    
-    const ai = new GoogleGenAI({ apiKey: activeApiKey });
-
-    const solutionInstructionMCQ = includeSolution
-      ? `\\loigiai{Nội dung đáp án}
-\\end{ex}
-*   **Rules:**
-    *   Replace "Nội dung câu hỏi" with the question text.
-    *   For each choice, extract only the answer text. **Crucially, you must remove any leading labels like "A.", "B.", "C.", or "D." from the text.**
-    *   **Ensure there is no period (.) at the very end of each choice's content.**
-    *   Replace "Nội dung đáp án" in \\loigiai with the solution or explanation. If no solution is provided, determine the correct answer and provide a brief explanation.`
-      : `\\end{ex}
-*   **Rules:**
-    *   Replace "Nội dung câu hỏi" with the question text.
-    *   For each choice, extract only the answer text. **Crucially, you must remove any leading labels like "A.", "B.", "C.", or "D." from the text.**
-    *   **Ensure there is no period (.) at the very end of each choice's content.**
-    *   **DO NOT include the \\loigiai{} block in your output.**`;
-
-    const solutionInstructionFRQ = includeSolution
-      ? `\\loigiai{Nội dung lời giải}
-\\end{ex}
-*   **Rules:**
-    *   Replace "Nội dung câu hỏi" with the question text.
-    *   Generate a correct and detailed solution for the question and place it inside the \\loigiai{} block, replacing "Nội dung lời giải".`
-      : `\\end{ex}
-*   **Rules:**
-    *   Replace "Nội dung câu hỏi" with the question text.
-    *   **DO NOT include the \\loigiai{} block in your output.**`;
-      
-    const prompt = `You are an expert in mathematical OCR and LaTeX formatting. Your task is to analyze the provided image(s) and convert their content into LaTeX code based on its type. If multiple images are provided, treat them as consecutive parts of the same document or question set unless they are clearly distinct.
-
-**General Formatting Rules:**
-*   When generating fractions, you MUST use the \\dfrac command instead of \\frac to ensure they are always in display style.
-*   For any kind of list or enumeration (liệt kê), you MUST NOT use the \\begin{enumerate} or \\begin{itemize} environments. Use plain text with manual numbering (e.g., "1. First item", "a) First item") and line breaks instead.
-*   To represent an angle, such as angle ABC, you MUST use the \\widehat{ABC} command.
-
-**Content-Specific Formatting Rules:**
-
-**1. For Multiple-Choice Questions (câu hỏi trắc nghiệm):**
-If the image contains a question with multiple choices (e.g., A, B, C, D), you MUST format it using this specific LaTeX structure:
-\\begin{ex}
-	Nội dung câu hỏi
-	\\choice
-	{Nội dung đáp án thứ nhất}
-	{Nội dung đáp án thứ hai}
-	{Nội dung đáp án thứ ba}
-	{Nội dung đáp án thứ tư}
-${solutionInstructionMCQ}
-
-**2. For Free-Response Questions (câu hỏi tự luận):**
-If the image contains a question that does not have multiple choices and expects a written answer, you MUST format it using this structure:
-\\begin{ex}
-	Nội dung câu hỏi
-${solutionInstructionFRQ}
-
-**3. For Other Content:**
-If the image does NOT fit the above categories (e.g., it only contains a standalone formula, a diagram, or a block of text), then convert all mathematical formulas and text into a single, accurate block of raw LaTeX code. Do not wrap it in \\begin{ex}...\\end{ex}.
-
-**Final Output Requirement:** For ALL cases, your final output must ONLY be the raw LaTeX code. Do not include any explanatory text before or after the code, and do not wrap it in markdown code fences like \`\`\`latex.
-**Crucial:** Generate original LaTeX code based on the image content. Do not attempt to reproduce any text verbatim if it appears to be copyrighted or from a known source. Focus on the mathematical structure and content.`;
-    
-    const imageParts = images.map(img => ({
-      inlineData: {
-        data: img.base64,
-        mimeType: img.mimeType,
-      },
-    }));
-
-    const textPart = {
-      text: prompt,
-    };
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-pro-preview',
-      contents: { parts: [...imageParts, textPart] },
-      config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }, temperature: 0.1 }
+    const response = await fetch("/api/convert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ images, includeSolution }),
     });
 
-    console.log("Gemini API Response:", response);
-    const resultText = response.text;
+    const data = await response.json().catch(() => ({}));
 
-    if (!resultText) {
-      const finishReason = response.candidates?.[0]?.finishReason;
-      throw new Error(`The API returned an empty response. Finish reason: ${finishReason}`);
+    if (!response.ok) {
+      throw new Error(data?.error || `Yêu cầu thất bại với mã lỗi ${response.status}.`);
     }
-    
-    // Clean up the response to ensure it's just LaTeX
-    const cleanedText = resultText.replace(/^```latex\n?/, '').replace(/```$/, '').trim();
-    
-    return cleanedText;
 
+    if (!data?.latex) {
+      throw new Error("Server không trả về nội dung LaTeX hợp lệ.");
+    }
+
+    return data.latex as string;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
     if (error instanceof Error) {
-        throw new Error(`Gemini API Error: ${error.message}`);
+      throw new Error(`Conversion failed: ${error.message}`);
     }
-    throw new Error("An unknown error occurred while communicating with the Gemini API.");
+    throw new Error("An unknown error occurred while communicating with the server.");
   }
 }
+
+// Ghi chú: tham số `customApiKey` của phiên bản cũ đã được loại bỏ vì App.tsx
+// chưa từng có UI (Settings/gear icon) để người dùng nhập key riêng — tính năng
+// đó là code chết, gây thông báo lỗi gây hiểu lầm. Nếu sau này bạn muốn hỗ trợ
+// người dùng tự nhập key của họ, hãy thêm UI tương ứng trong App.tsx VÀ truyền
+// key đó trong body của fetch ở trên, đồng thời cho phép api/convert.ts ưu tiên
+// dùng key từ request thay vì process.env.GEMINI_API_KEY.
