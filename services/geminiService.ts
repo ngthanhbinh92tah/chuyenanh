@@ -26,7 +26,8 @@ export async function convertImagesToLatex(
     return data.latex as string;
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Conversion failed: ${error.message}`);
+      // Không thêm tiền tố ở đây — App.tsx đã tự thêm "Conversion failed:" khi hiển thị lỗi
+      throw error;
     }
     throw new Error("An unknown error occurred while communicating with the server.");
   }
