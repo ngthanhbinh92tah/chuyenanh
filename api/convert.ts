@@ -2,7 +2,7 @@
 // Vercel Serverless Function — chạy trên server, KHÔNG bao giờ được gửi tới trình duyệt.
 // Đây là nơi duy nhất được phép đọc GEMINI_API_KEY.
 
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // Lưu ý: nếu bạn dùng @vercel/node, có thể thay `any` bằng VercelRequest/VercelResponse
 // để có type-safety đầy đủ: `npm i -D @vercel/node`
@@ -101,9 +101,9 @@ If the image does NOT fit the above categories (e.g., it only contains a standal
     const textPart = { text: prompt };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-2.5-flash",
       contents: { parts: [...imageParts, textPart] },
-      config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }, temperature: 0.1 },
+      config: { temperature: 0.1 },
     });
 
     const resultText = response.text;
